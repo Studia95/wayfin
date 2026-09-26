@@ -8,15 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Account, Client, expenseCategories, incomeCategories, today, Transaction } from "./finance-types";
+import { Account, Category, Client, expenseCategories, incomeCategories, today, Transaction } from "./finance-types";
 
 function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
   return <div className={`grid gap-2 ${className}`}><Label>{label}</Label>{children}</div>;
 }
 
-export function TransactionDialog({ open, onOpenChange, accounts, clients, initial, onSave }: {
+export function TransactionDialog({ open, onOpenChange, accounts, clients, categories, initial, onSave, onCreateCategory }: {
   open: boolean; onOpenChange: (open: boolean) => void; accounts: Account[]; clients: Client[];
-  initial?: Transaction | null; onSave: (data: Record<string, unknown>, id?: number) => Promise<void>;
+  categories: Category[]; initial?: Transaction | null; onSave: (data: Record<string, unknown>, id?: number) => Promise<void>;
+  onCreateCategory: (type: "income" | "expense", name: string) => Promise<Category | undefined>;
 }) {
   const [type, setType] = useState<"income" | "expense">(initial?.type || "expense");
   const [status, setStatus] = useState<"paid" | "planned">(initial?.status || "paid");
@@ -25,6 +26,7 @@ export function TransactionDialog({ open, onOpenChange, accounts, clients, initi
   const [clientId, setClientId] = useState(initial?.clientId ? String(initial.clientId) : "none");
   const [saving, setSaving] = useState(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- dialog state is reset when opened for a different record. */
   useEffect(() => {
     if (!open) return;
     const nextType = initial?.type || "expense";
@@ -34,6 +36,7 @@ export function TransactionDialog({ open, onOpenChange, accounts, clients, initi
     setAccountId(String(initial?.accountId || accounts[0]?.id || ""));
     setClientId(initial?.clientId ? String(initial.clientId) : "none");
   }, [open, initial, accounts]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function changeType(next: "income" | "expense") {
     setType(next);
@@ -60,7 +63,15 @@ export function TransactionDialog({ open, onOpenChange, accounts, clients, initi
     } finally { setSaving(false); }
   }
 
-  const categories = type === "income" ? incomeCategories : expenseCategories;
+  const availableCategories = categories.filter(item => item.type === type).map(item => item.name);
+  const fallbackCategories = type === "income" ? incomeCategories : expenseCategories;
+  const categoryOptions = availableCategories.length ? availableCategories : fallbackCategories;
+  async function createCategory() {
+    const name = window.prompt(`Новая категория для раздела «${type === "income" ? "Доходы" : "Расходы"}»`);
+    if (!name?.trim()) return;
+    const created = await onCreateCategory(type, name.trim());
+    if (created) setCategory(created.name);
+  }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
@@ -78,7 +89,7 @@ export function TransactionDialog({ open, onOpenChange, accounts, clients, initi
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Категория">
-              <Select value={category} onValueChange={setCategory}><SelectTrigger className="h-11 w-full"><SelectValue /></SelectTrigger><SelectContent>{categories.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select>
+              <Select value={category} onValueChange={value => value === "__new__" ? void createCategory() : setCategory(value)}><SelectTrigger className="h-11 w-full"><SelectValue /></SelectTrigger><SelectContent>{categoryOptions.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}<SelectItem value="__new__">＋ Добавить новую категорию</SelectItem></SelectContent></Select>
             </Field>
             <Field label="Счёт">
               <Select value={accountId} onValueChange={setAccountId}><SelectTrigger className="h-11 w-full"><SelectValue /></SelectTrigger><SelectContent>{accounts.filter(a => !a.archived).map((item) => <SelectItem key={item.id} value={String(item.id)}>{item.name}</SelectItem>)}</SelectContent></Select>
@@ -112,7 +123,9 @@ export function ClientDialog({ open, onOpenChange, initial, onSave }: {
 }) {
   const [type, setType] = useState(initial?.type || "company");
   const [saving, setSaving] = useState(false);
+  /* eslint-disable react-hooks/set-state-in-effect -- dialog state is reset when opened for a different record. */
   useEffect(() => { if (open) setType(initial?.type || "company"); }, [open, initial]);
+  /* eslint-enable react-hooks/set-state-in-effect */
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); const values = new FormData(event.currentTarget); setSaving(true);
     try { await onSave({ name: values.get("name"), type, phone: values.get("phone"), email: values.get("email"), note: values.get("note") }, initial?.id); onOpenChange(false); }

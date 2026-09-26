@@ -1,9 +1,10 @@
 export type Business = { id: number; name: string; industry: string; currency: string };
+export type Category = { id: number; businessId: number; type: "income" | "expense"; name: string; createdAt: string };
 export type Account = { id: number; businessId: number; name: string; type: string; openingBalanceCents: number; archived: boolean };
 export type Client = { id: number; businessId: number; name: string; type: string; phone: string; email: string; status: string; note: string; createdAt: string };
 export type Transaction = { id: number; businessId: number; type: "income" | "expense"; amountCents: number; category: string; accountId: number; clientId: number | null; status: "paid" | "planned"; occurredAt: string; dueAt: string | null; description: string; createdAt: string; updatedAt: string };
 export type Budget = { id: number; businessId: number; month: string; type: "income" | "expense"; category: string; amountCents: number };
-export type Snapshot = { business: Business; accounts: Account[]; clients: Client[]; transactions: Transaction[]; budgets: Budget[] };
+export type Snapshot = { business: Business; accounts: Account[]; clients: Client[]; transactions: Transaction[]; budgets: Budget[]; categories: Category[] };
 export type View = "overview" | "operations" | "clients" | "plan" | "settings";
 
 export const incomeCategories = ["Продажи", "Доставка", "Кейтеринг", "Мероприятия", "Услуги", "Прочие доходы"];

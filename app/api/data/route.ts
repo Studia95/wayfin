@@ -1,8 +1,8 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { accounts, budgets, businesses, clients, transactions } from "@/db/schema";
+import { accounts, budgets, businesses, categories, clients, transactions } from "@/db/schema";
 
-type Entity = "transaction" | "client" | "budget" | "account" | "business";
+type Entity = "transaction" | "client" | "budget" | "account" | "business" | "category";
 
 function errorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : "Неизвестная ошибка";
@@ -22,7 +22,15 @@ function monthKey(date: Date) {
 async function seedDemoData() {
   const db = getDb();
   const existing = await db.select({ id: businesses.id }).from(businesses).limit(1);
-  if (existing.length) return;
+  const defaultCategories = [
+    ...["Продажи", "Доставка", "Кейтеринг", "Мероприятия", "Услуги", "Прочие доходы"].map(name => ({ businessId: 1, type: "income", name })),
+    ...["Сырьё и товары", "Зарплата", "Аренда", "Маркетинг", "Коммунальные", "Транспорт", "Налоги", "Прочие расходы"].map(name => ({ businessId: 1, type: "expense", name })),
+  ];
+  if (existing.length) {
+    const categoryCount = await db.select({ id: categories.id }).from(categories).limit(1);
+    if (!categoryCount.length) await db.insert(categories).values(defaultCategories);
+    return;
+  }
 
   const now = new Date();
   const day = 24 * 60 * 60 * 1000;
@@ -54,6 +62,7 @@ async function seedDemoData() {
 
   await db.batch([
     db.insert(businesses).values({ id: 1, name: "Кофейня Мята", industry: "Кафе и рестораны" }),
+    db.insert(categories).values(defaultCategories),
     db.insert(accounts).values([
       { id: 1, businessId: 1, name: "Расчётный счёт", type: "bank", openingBalanceCents: 18500000 },
       { id: 2, businessId: 1, name: "Касса", type: "cash", openingBalanceCents: 4200000 },
@@ -88,14 +97,15 @@ async function seedDemoData() {
 async function snapshot() {
   const db = getDb();
   await seedDemoData();
-  const [businessRows, accountRows, clientRows, transactionRows, budgetRows] = await Promise.all([
+  const [businessRows, accountRows, clientRows, transactionRows, budgetRows, categoryRows] = await Promise.all([
     db.select().from(businesses).orderBy(asc(businesses.id)),
     db.select().from(accounts).orderBy(asc(accounts.id)),
     db.select().from(clients).orderBy(asc(clients.name)),
     db.select().from(transactions).orderBy(desc(transactions.occurredAt), desc(transactions.id)),
     db.select().from(budgets).orderBy(desc(budgets.month), asc(budgets.category)),
+    db.select().from(categories).orderBy(asc(categories.type), asc(categories.name)),
   ]);
-  return { business: businessRows[0], accounts: accountRows, clients: clientRows, transactions: transactionRows, budgets: budgetRows };
+  return { business: businessRows[0], accounts: accountRows, clients: clientRows, transactions: transactionRows, budgets: budgetRows, categories: categoryRows };
 }
 
 export async function GET() {
@@ -131,6 +141,12 @@ export async function POST(request: Request) {
     } else if (entity === "account") {
       if (!String(data.name || "").trim()) return Response.json({ error: "Укажите название счёта" }, { status: 400 });
       await db.insert(accounts).values({ businessId: 1, name: String(data.name).trim(), type: String(data.type || "bank"), openingBalanceCents: Number(data.openingBalanceCents || 0) });
+    } else if (entity === "category") {
+      const name = String(data.name || "").trim();
+      if (!name || !["income", "expense"].includes(String(data.type))) return Response.json({ error: "Укажите название и тип категории" }, { status: 400 });
+      const duplicate = await db.select({ id: categories.id }).from(categories).where(eq(categories.name, name)).limit(1);
+      if (duplicate.length) return Response.json({ error: "Такая категория уже есть" }, { status: 409 });
+      await db.insert(categories).values({ businessId: 1, type: String(data.type), name });
     }
     return Response.json(await snapshot(), { status: 201 });
   } catch (error) {

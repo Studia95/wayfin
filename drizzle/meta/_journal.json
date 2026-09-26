@@ -8,6 +8,13 @@
       "when": 1790390308436,
       "tag": "0000_left_impossible_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790442629365,
+      "tag": "0001_long_wolfpack",
+      "breakpoints": true
     }
   ]
 }
