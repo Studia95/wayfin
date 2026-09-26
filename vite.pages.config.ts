@@ -4,6 +4,7 @@ import path from "node:path";
 
 export default defineConfig({
   root: "pages",
+  publicDir: "../public",
   base: "/wayfin/",
   plugins: [react()],
   resolve: { alias: { "@": path.resolve(process.cwd()) } },
