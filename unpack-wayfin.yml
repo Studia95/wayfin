@@ -1,0 +1,36 @@
+name: Unpack WAYFIN project
+
+on:
+  push:
+    paths:
+      - ".github/workflows/unpack.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Unpack project into repository root
+        run: |
+          mkdir -p _wayfin_unpack
+          unzip -q -o WAYFIN-project.zip -d _wayfin_unpack
+          rsync -a _wayfin_unpack/WAYFIN-project/ ./
+          rm -rf _wayfin_unpack
+
+      - name: Commit unpacked files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+          else
+            git commit -m "Unpack WAYFIN project"
+            git push
+          fi
