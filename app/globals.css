@@ -102,3 +102,7 @@ body {
 }
 
 button, input, textarea { font: inherit; }
+
+@media (max-width: 639px) {
+  main h2 { font-size: 1.25rem; line-height: 1.35; }
+}
