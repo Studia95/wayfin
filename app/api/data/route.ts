@@ -23,8 +23,8 @@ async function seedDemoData() {
   const db = getDb();
   const existing = await db.select({ id: businesses.id }).from(businesses).limit(1);
   const defaultCategories = [
-    ...["Продажи", "Доставка", "Кейтеринг", "Мероприятия", "Услуги", "Прочие доходы"].map(name => ({ businessId: 1, type: "income", name })),
-    ...["Сырьё и товары", "Зарплата", "Аренда", "Маркетинг", "Коммунальные", "Транспорт", "Налоги", "Прочие расходы"].map(name => ({ businessId: 1, type: "expense", name })),
+    ...["Продажи", "Доставка", "Кейтеринг", "Мероприятия", "Услуги", "Прочие доходы"].map(name => ({ businessId: 1, type: "income", name, parentId: null })),
+    ...["Сырьё и товары", "Зарплата", "Аренда", "Маркетинг", "Коммунальные", "Транспорт", "Налоги", "Прочие расходы"].map(name => ({ businessId: 1, type: "expense", name, parentId: null })),
   ];
   if (existing.length) {
     const categoryCount = await db.select({ id: categories.id }).from(categories).limit(1);
@@ -146,7 +146,7 @@ export async function POST(request: Request) {
       if (!name || !["income", "expense"].includes(String(data.type))) return Response.json({ error: "Укажите название и тип категории" }, { status: 400 });
       const duplicate = await db.select({ id: categories.id }).from(categories).where(eq(categories.name, name)).limit(1);
       if (duplicate.length) return Response.json({ error: "Такая категория уже есть" }, { status: 409 });
-      await db.insert(categories).values({ businessId: 1, type: String(data.type), name });
+      await db.insert(categories).values({ businessId: 1, type: String(data.type), name, parentId: data.parentId ? Number(data.parentId) : null });
     }
     return Response.json(await snapshot(), { status: 201 });
   } catch (error) {
@@ -176,6 +176,10 @@ export async function PATCH(request: Request) {
       await db.update(accounts).set({ name: data.name ? String(data.name).trim() : undefined, type: data.type ? String(data.type) : undefined, openingBalanceCents: data.openingBalanceCents !== undefined ? Number(data.openingBalanceCents) : undefined, archived: data.archived !== undefined ? Boolean(data.archived) : undefined }).where(eq(accounts.id, id));
     } else if (entity === "business") {
       await db.update(businesses).set({ name: data.name ? String(data.name).trim() : undefined, industry: data.industry ? String(data.industry) : undefined }).where(eq(businesses.id, id));
+    } else if (entity === "category") {
+      const name = data.name ? String(data.name).trim() : "";
+      if (!name) return Response.json({ error: "Укажите название категории" }, { status: 400 });
+      await db.update(categories).set({ name, parentId: data.parentId === null ? null : data.parentId ? Number(data.parentId) : undefined }).where(eq(categories.id, id));
     }
     return Response.json(await snapshot());
   } catch (error) {

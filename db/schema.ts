@@ -14,6 +14,7 @@ export const categories = sqliteTable("categories", {
   businessId: integer("business_id").notNull(),
   type: text("type").notNull(),
   name: text("name").notNull(),
+  parentId: integer("parent_id"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [index("idx_categories_business_type").on(table.businessId, table.type)]);
 

@@ -1,5 +1,5 @@
 export type Business = { id: number; name: string; industry: string; currency: string };
-export type Category = { id: number; businessId: number; type: "income" | "expense"; name: string; createdAt: string };
+export type Category = { id: number; businessId: number; type: "income" | "expense"; name: string; parentId: number | null; createdAt: string };
 export type Account = { id: number; businessId: number; name: string; type: string; openingBalanceCents: number; archived: boolean };
 export type Client = { id: number; businessId: number; name: string; type: string; phone: string; email: string; status: string; note: string; createdAt: string };
 export type Transaction = { id: number; businessId: number; type: "income" | "expense"; amountCents: number; category: string; accountId: number; clientId: number | null; status: "paid" | "planned"; occurredAt: string; dueAt: string | null; description: string; createdAt: string; updatedAt: string };
@@ -42,8 +42,8 @@ function staticDemoSnapshot(): Snapshot {
     ],
     budgets: [{ id: 1, businessId: 1, month, type: "income", category: "Продажи", amountCents: 15000000 }, { id: 2, businessId: 1, month, type: "expense", category: "Сырьё и товары", amountCents: 6500000 }],
     categories: [
-      ...incomeCategories.map((name, id) => ({ id: id + 1, businessId: 1, type: "income" as const, name, createdAt: date })),
-      ...expenseCategories.map((name, id) => ({ id: id + 7, businessId: 1, type: "expense" as const, name, createdAt: date })),
+      ...incomeCategories.map((name, id) => ({ id: id + 1, businessId: 1, type: "income" as const, name, parentId: null, createdAt: date })),
+      ...expenseCategories.map((name, id) => ({ id: id + 7, businessId: 1, type: "expense" as const, name, parentId: null, createdAt: date })),
     ],
   };
 }
@@ -68,7 +68,8 @@ function staticMutation(method: string, body: { entity?: string; id?: number; da
     return next;
   }
   if (body.entity === "business") next.business = { ...next.business, name: String(data.name || next.business.name), industry: String(data.industry || next.business.industry) };
-  if (body.entity === "category") next.categories.push({ id: Math.max(0, ...next.categories.map(item => item.id)) + 1, businessId: 1, type: String(data.type) as "income" | "expense", name: String(data.name), createdAt: today() });
+  if (body.entity === "category" && method === "POST") next.categories.push({ id: Math.max(0, ...next.categories.map(item => item.id)) + 1, businessId: 1, type: String(data.type) as "income" | "expense", name: String(data.name), parentId: data.parentId ? Number(data.parentId) : null, createdAt: today() });
+  if (body.entity === "category" && method === "PATCH" && body.id) { const item = next.categories.find(row => row.id === body.id); if (item) Object.assign(item, { name: String(data.name || item.name), parentId: data.parentId === null ? null : data.parentId ? Number(data.parentId) : item.parentId }); }
   if (body.entity === "account") next.accounts.push({ id: Math.max(0, ...next.accounts.map(item => item.id)) + 1, businessId: 1, name: String(data.name), type: String(data.type || "bank"), openingBalanceCents: Number(data.openingBalanceCents || 0), archived: false });
   if (body.entity === "client") next.clients.push({ id: Math.max(0, ...next.clients.map(item => item.id)) + 1, businessId: 1, name: String(data.name), type: String(data.type || "company"), phone: String(data.phone || ""), email: String(data.email || ""), status: "active", note: String(data.note || ""), createdAt: today() });
   if (body.entity === "transaction" && method === "POST") next.transactions.push({ id: Math.max(0, ...next.transactions.map(item => item.id)) + 1, businessId: 1, type: String(data.type) as "income" | "expense", amountCents: Number(data.amountCents), category: String(data.category), accountId: Number(data.accountId), clientId: data.clientId ? Number(data.clientId) : null, status: String(data.status || "paid") as "paid" | "planned", occurredAt: String(data.occurredAt), dueAt: data.dueAt ? String(data.dueAt) : null, description: String(data.description || ""), createdAt: today(), updatedAt: today() });

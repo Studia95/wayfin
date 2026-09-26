@@ -1,0 +1,11 @@
+{
+  "name": "ФинПилот — финансовый учёт",
+  "short_name": "ФинПилот",
+  "start_url": "/wayfin/",
+  "scope": "/wayfin/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0b1739",
+  "lang": "ru",
+  "icons": [{ "src": "/wayfin/pwa-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
